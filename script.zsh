@@ -1,0 +1,178 @@
+#!/bin/zsh
+
+# vim: fdm=marker cms=\ #\ %s
+
+set -o errexit
+set -o nounset
+(set -o posix 2>/dev/null) && set -o posix
+
+pastish_api=int
+pastish_server_int=http://pastebin.suse.de/
+pastish_server_ext=http://susepaste.org/
+pastish_user="${USER:-anonymous}@${HOST:-unknown}"
+
+for f in /etc/pastish ~/.pastish; do
+  test -f "$f" && test -r "$f" && {
+    . $f
+  }
+done
+
+SELF=$(basename "$0")
+
+usage() # {{{
+{
+  local self="$SELF" exit=${1?} fd=1
+  shift
+  test $exit -ne 0 && fd=2
+  {
+    if test $exit -eq 1; then
+      printf "%s: option -%c requires an argument\n" "$self" "$1"
+    elif test $exit -eq 2; then
+      printf "%s: unknown option -%c\n" "$self" "$1"
+    elif test $exit -eq 3; then
+      printf "%s: multiple arguments are not supported\n" "$self"
+    elif test $exit -eq 4; then
+      printf "%s: bad argument\n" "$self"
+    elif test $exit -eq 5; then
+      printf "%s: mixing -%c with ID is not supported\n" "$self" "$1"
+    elif test $exit -eq 6; then
+      printf "%s: garbled configuration\n" "$self"
+      local val
+      for v in pastish_api pastish_server; do
+        val="${(P)v}"
+        printf "%s:   %-16s = %s\n" "$self" "$v" "${val:-<empty>}"
+      done
+      exit 1
+    fi
+    printf "%s: Usage: %s {-h|[options]|ID}\n" "$self" "$self"
+    if test $exit -ne 0; then
+      printf "%s: Use \"%s -h\" to see the full option listing.\n" "$self" "$self"
+    else
+      printf "  Options:\n"
+      printf "    %-16s  %s\n" \
+        "-h"              "Display this message" \
+        "-A API"          "Server uses API ('int' or 'ext')" \
+        "-d DESCRIPTION"  "Submit the snippet with DESCRIPTION" \
+        "-s SYNTAX"       "Use SYNTAX for highlighting" \
+        "-u USERNAME"     "The author of the snippet is USERNAME"
+      printf "  Arguments:\n"
+      printf "    %-16s  %s\n" \
+        "ID"							"Display snippet with ID"
+    fi
+  } >&$fd
+  if test $exit -eq 0; then
+    exit 0
+  else
+    exit 1
+  fi
+} # }}}
+
+is_number() # {{{
+{
+  local pattern
+  case "$pastish_api" in
+  int)
+    pattern='^[[:digit:]]+$'
+  ;;
+  ext)
+    pattern='^[[:xdigit:]]+$'
+  ;;
+  esac
+  echo "$1" | grep -Eqe "$pattern"
+} # }}}
+
+do_submit() # {{{
+{
+  trap 'rm -f $tmpfile' EXIT
+  tmpfile=$(mktemp)
+  tee "$tmpfile" >/dev/null
+
+  local -a args
+
+  : ${user="$pastish_user"}
+  case "$pastish_api" in
+  int)
+    args=(
+      --url "${pastish_server}add"
+      -F "code=<$tmpfile"
+      -F formsubmit=paste
+    )
+    (( ${+hili} )) && args+=(-F highlight=$hili)
+    (( ${+user} )) && args+=(-F login=$user)
+    (( ${+desc} )) && args+=(-F desc=$desc)
+  ;;
+  ext)
+    args=(
+      --url "${pastish_server}"
+      -F "code=<$tmpfile"
+      -F submit=submit
+      -F private=1
+      -F expire=$((24 * 60))
+      -F lang=${hili:-text}
+    )
+    (( ${+user} )) && args+=(-F name=$user)
+    (( ${+desc} )) && args+=(-F title=$desc)
+  ;;
+  esac
+  curl \
+    -fSs \
+    -w '%{redirect_url}\n' \
+    "${(@)args}" \
+    "${(@)form_fields}"
+} # }}}
+
+do_fetch() # {{{
+{
+  case "$pastish_api" in
+  int)
+    curl -G $form_fields "$pastish_server$1/src"
+  ;;
+  ext)
+    curl -G $form_fields "${pastish_server}view/raw/$1"
+  ;;
+  esac
+} # }}}
+
+declare -a form_fields
+
+while getopts :A:d:ho:s:u: optname; do
+  case $optname in
+  A) api="$OPTARG" ;;
+  d) desc="$OPTARG" ;;
+  h) usage 0 ;;
+  o) form_fields+=(-F $OPTARG) ;;
+  s) hili="$OPTARG" ;;
+  u) user="$OPTARG" ;;
+  :) usage 1 "$OPTARG" ;; # option-argument missing
+  ?) usage 2 "$OPTARG" ;; # unknown option
+  esac
+done
+
+shift $(($OPTIND - 1))
+
+pastish_api=${api:-$pastish_api}
+pastish_server=${pastish_server:-}
+case "$pastish_api" in
+int) pastish_server=$pastish_server_int ;;
+ext) pastish_server=$pastish_server_ext ;;
+*) usage 6 ;;
+esac
+
+[[ -z ${pastish_server:+nonempty} ]] && usage 6
+
+if test $# -gt 1; then
+  usage 3
+elif test $# -eq 1; then
+  is_number "$1" || usage 4
+  [[ -z ${desc+set} ]] || usage 5 d
+  [[ -z ${hili+set} ]] || usage 5 s
+  [[ -z ${user+set} ]] || usage 5 u
+  req=fetch
+elif test $# -eq 0; then
+  req=submit
+fi
+
+case $req in
+submit) do_submit ;;
+fetch)  do_fetch "$1" ;;
+esac
