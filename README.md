@@ -8,4 +8,4 @@ Adding a line.
 
 new change
 
-one more change
+re-change
