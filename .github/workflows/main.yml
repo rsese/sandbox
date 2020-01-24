@@ -1,4 +1,4 @@
-name: CI
+name: get the pull request number
 
 on: [pull_request]
 
@@ -8,20 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Run a one-line script
-      run: echo Hello, world!
-    - name: Run a multi-line script
-      run: |
-        echo Add other actions to build,
-        echo test, and deploy your project.
-    - name: cat the payload
+    - name: print out the payload
       run: |
         cat $GITHUB_EVENT_PATH
-    - name: extract and echo the PR number
+    - name: extract the PR number from the payload and print it
       run: |
         pull_number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
         echo $pull_number
-    - name: cat $GITHUB_REF
+    - name: print the $GITHUB_REF
       run: |
         echo $GITHUB_REF
