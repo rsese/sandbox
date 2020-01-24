@@ -18,3 +18,16 @@ jobs:
     - name: print the $GITHUB_REF
       run: |
         echo $GITHUB_REF
+    - name: print github.ref
+      run: |
+        echo ${{ github.ref }}
+    - name: print github.ref
+      run: |
+        echo ${{ github.ref }}
+    - name: print github.event
+      run: |
+        echo ${{ github.event }}
+    - name: extract the PR number from the payload and print it
+      run: |
+          PR_NUMBER=$(jq --raw-output .pull_request.number "${{ github.event_path }}")
+          echo $PR_NUMBER
