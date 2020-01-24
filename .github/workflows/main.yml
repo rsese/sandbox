@@ -22,4 +22,6 @@ jobs:
       run: |
         pull_number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
         echo $pull_number
-
+    - name: cat $GITHUB_REF
+      run: |
+        echo $GITHUB_REF
