@@ -18,4 +18,8 @@ jobs:
     - name: cat the payload
       run: |
         cat $GITHUB_EVENT_PATH
+    - name: extract and echo the PR number
+      run: |
+        pull_number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+        echo $pull_number
 
