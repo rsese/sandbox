@@ -1,7 +1,8 @@
 name: run on merge
 
-on: [pull_request]:
-  types: [closed]
+on:
+  pull_request:
+    types: [closed]
 
 jobs:
   merge-PR:
