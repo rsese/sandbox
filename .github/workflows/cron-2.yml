@@ -1,0 +1,15 @@
+name: cron check
+
+on:
+  schedule:
+    - cron: '5 * * * *'
+
+jobs:
+  top-of-the-hour-plus-5-minutes-to-you:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: What time is it?
+      run: |
+        date
