@@ -1,6 +1,6 @@
-name: get the pull request number
+name: CI
 
-on: [pull_request]
+on: [pull_request, push]
 
 jobs:
   build:
@@ -8,20 +8,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: print out the payload
-      run: |
-        cat $GITHUB_EVENT_PATH
-    - name: extract the PR number from the payload and print it
-      run: |
-        pull_number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-        echo $pull_number
-    - name: print the $GITHUB_REF
-      run: |
-        echo $GITHUB_REF
-    - name: extract the PR number from the payload and print it
-      run: |
-          PR_NUMBER=$(jq --raw-output .pull_request.number "${{ github.event_path }}")
-          echo $PR_NUMBER
-    - name: print github.ref
+    - name: payload me
+      run: cat $GITHUB_EVENT_PATH
+    - name: github.ref
       run: |
         echo ${{ github.ref }}
